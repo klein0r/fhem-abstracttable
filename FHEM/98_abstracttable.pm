@@ -15,7 +15,7 @@ use warnings;
 sub abstracttable_Initialize($)
 {
     my ($hash) = @_;
-    
+
     $hash->{DefFn} = "abstracttable_Define";
     $hash->{AttrList} = "table-startindex table-colgroup table-header table-rowtemplate table-footer";
 
@@ -41,7 +41,7 @@ sub abstracttable_Define($$)
 
     if (defined($defs{$device})) {
         $hash->{DEVICE} = $device;
-        $hash->{MODULE_VERSION} = "0.1";
+        $hash->{MODULE_VERSION} = "0.2";
 
         return undef;
     }
@@ -71,6 +71,16 @@ sub abstracttable_FwFn($$$$)
     if ($tableRowTemplate) {
         $ret .= '<table class="block wide abstract-table">';
 
+        if ($tableColgroup) {
+            $ret .= '<colgroup>';
+
+            foreach my $col (split(/,/, $tableColgroup)) {
+                $ret .= '<col width="' . $col . '">';
+            }
+
+            $ret .= '</colgroup>';
+        }
+
         if ($tableHeader) {
             $ret .= '<thead>';
             $ret .= '<tr>';
@@ -95,9 +105,10 @@ sub abstracttable_FwFn($$$$)
 
                 if (defined($val)) {
                     $lastRowWithValue = 1;
+                    push(@currentRow, $val);
+                } else {
+                    push(@currentRow, '');
                 }
-
-                push(@currentRow, $val);
             }
 
             if ($lastRowWithValue) {
@@ -105,7 +116,10 @@ sub abstracttable_FwFn($$$$)
                 $ret .= '<td>' . join('</td><td>', @currentRow) . '</td>';
                 $ret .= '</tr>';
 
-                Log3($d, 5, "Found values: " . join(', ', @currentRow));
+                if (scalar(@currentRow) > 0) {
+                    Log3($d, 5, "Found values: " . join(', ', @currentRow));
+                }
+
                 $rows++;
             }
 
@@ -210,7 +224,7 @@ sub abstracttable_FwFn($$$$)
     <a name="table-colgroup"></a>
     <li>
       table-colgroup<br>
-      Comma separated list of column widths in percent
+      Comma separated list of column widths
     </li>
 
     <a name="table-footer"></a>
