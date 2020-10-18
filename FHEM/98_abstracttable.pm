@@ -17,7 +17,7 @@ sub abstracttable_Initialize($)
     my ($hash) = @_;
 
     $hash->{DefFn} = "abstracttable_Define";
-    $hash->{AttrList} = "table-startindex table-colgroup table-header table-rowtemplate table-footer";
+    $hash->{AttrList} = "table-startindex table-colgroup table-header table-rowtemplate table-footer table-sortcols";
 
     #$hash->{FW_summaryFn} = "abstracttable_FwFn";
     $hash->{FW_detailFn}  = "abstracttable_FwFn";
@@ -65,6 +65,7 @@ sub abstracttable_FwFn($$$$)
     my $tableHeader = AttrVal($d, "table-header", "");
     my $tableRowTemplate = AttrVal($d, "table-rowtemplate", "");
     my $tableFooter = AttrVal($d, "table-footer", "");
+    my $tableSortColumns = AttrVal($d, 'table-sortcols', '');
 
     my $rows = 0;
 
@@ -94,6 +95,27 @@ sub abstracttable_FwFn($$$$)
         my @tableColumns = split(/,/, $tableRowTemplate);
         my $lastRowWithValue = 1;
         my $currentIndex = $tableStartIndex;
+        my @sortColumns = ();
+        my %sortedList = ();
+
+        # look up sort columns and translate to numeric id
+        my %headerName2Num = ();
+        my $headerName2NumIndex = 0;
+        foreach( split(/,/, $tableHeader) ){
+            $headerName2Num{$_} = $headerName2NumIndex;
+            $headerName2NumIndex++;
+        }
+        foreach my $nameornumber ( split( /[ ,]/, $tableSortColumns ) ){
+            if( $nameornumber =~ m/^\d+$/ ){
+                push @sortColumns, $nameornumber;
+            }elsif( defined( $headerName2Num{$nameornumber} ) ){
+                push @sortColumns, $headerName2Num{$nameornumber};
+            }else{
+                Log3 $d, 3, "ignoring unknown column identifyer '$nameornumber' - use column name or number";
+            }
+        }
+        undef $headerName2NumIndex;
+        undef %headerName2Num;
 
         while ($lastRowWithValue) {
             $lastRowWithValue = 0;
@@ -112,18 +134,34 @@ sub abstracttable_FwFn($$$$)
             }
 
             if ($lastRowWithValue) {
-                $ret .= '<tr class="' . ($currentIndex % 2 == 0 ? 'even' : 'odd') . '">';
-                $ret .= '<td>' . join('</td><td>', @currentRow) . '</td>';
-                $ret .= '</tr>';
+                # create unique key / sort in read order by default
+                my $sortIndex = $currentIndex;
+                if( $tableSortColumns ne '' ){
+                    # sort as requested
+                    $sortIndex = '';
+                    foreach my $columnid ( @sortColumns ){
+                        $sortIndex .= $currentRow[$columnid];
+                    }
+                    # make key unique
+                    $sortIndex .= $currentIndex;
+                }
+                $sortedList{$sortIndex} = '<td>' . join('</td><td>', @currentRow) . '</td>';
 
                 if (scalar(@currentRow) > 0) {
                     Log3($d, 5, "Found values: " . join(', ', @currentRow));
                 }
 
-                $rows++;
             }
 
             $currentIndex++;
+        }
+
+        # give out list in selected order
+        foreach my $sortIndex ( sort keys %sortedList ){
+            $ret .= '<tr class="' . ($currentIndex % 2 == 0 ? 'even' : 'odd') . '">';
+            $ret .= $sortedList{$sortIndex};
+            $ret .= '</tr>';
+            $rows++;
         }
 
         $ret .= '</tbody>';
