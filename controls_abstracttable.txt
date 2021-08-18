@@ -1,2 +1,2 @@
 DEL ./FHEM/98_abstracttable.pm
-UPD 2019-03-11_11:34:30 7597 FHEM/98_abstracttable.pm
+UPD 2020-10-18_11:34:30 14489 FHEM/98_abstracttable.pm
